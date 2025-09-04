@@ -15,16 +15,18 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
-import { PlusCircle, ArrowLeft } from "lucide-react";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { PlusCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function AddPost() {
+  const [author, setAuthor] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const { user, isAuthenticated } = useAuthStore();
-  const { addPost } = usePostStore();
+  const { isAuthenticated, token } = useAuthStore();
+  const { addPost, isLoading } = usePostStore();
   const { setSelectedPage } = useNavigationStore();
 
   // Redirect if not authenticated
@@ -52,6 +54,7 @@ export default function AddPost() {
     e.preventDefault();
     setError("");
 
+    // Client-side validation
     if (!title.trim() || !content.trim()) {
       setError("Please fill in both title and content");
       return;
@@ -67,17 +70,61 @@ export default function AddPost() {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
-      addPost(title.trim(), content.trim(), user.username);
-      setTitle("");
-      setContent("");
-      setSelectedPage("posts");
+      const result = await addPost(
+        title.trim(),
+        content.trim(),
+        author.trim(),
+        token
+      );
+
+      if (result.success) {
+        // Show success toast
+        toast.success(result.message || "Post created successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+
+        // Clear form
+        setTitle("");
+        setContent("");
+
+        setSelectedPage("posts");
+      } else {
+        // Handle API errors
+        console.error("Component: Failed to create post:", result.message);
+        toast.error(
+          result.message || "Failed to create post. Please try again.",
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
+        setError(result.message || "Failed to create post. Please try again.");
+      }
     } catch (err) {
-      setError("Failed to create post. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Component: Error creating post:", err);
+      const errorMessage =
+        "Network error. Please check your connection and try again.";
+
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      setError(errorMessage);
     }
   };
 
@@ -88,6 +135,7 @@ export default function AddPost() {
           variant="ghost"
           onClick={() => setSelectedPage("posts")}
           className="mb-4"
+          disabled={isLoading}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Posts
@@ -99,17 +147,29 @@ export default function AddPost() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <PlusCircle className="h-5 w-5" />
-            <span>New Blog Post</span>
-          </CardTitle>
-          <CardDescription>
-            Fill in the details below to create your new post.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="author">Post Author</Label>
+              <Input
+                id="author"
+                type="text"
+                placeholder="Enter your name"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="title">Post Title</Label>
+              <Input
+                id="title"
+                type="text"
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={isLoading}
+                className="text-lg"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="title">Post Title</Label>
               <Input
@@ -118,12 +178,9 @@ export default function AddPost() {
                 placeholder="Enter an engaging title for your post"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 className="text-lg"
               />
-              <p className="text-xs text-muted-foreground">
-                Minimum 5 characters
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -133,7 +190,7 @@ export default function AddPost() {
                 placeholder="Write your post content here. Share your insights, experiences, or knowledge..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                disabled={isSubmitting}
+                disabled={isLoading}
                 rows={12}
                 className="resize-none"
               />
@@ -143,30 +200,33 @@ export default function AddPost() {
             </div>
 
             {error && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
             <div className="flex items-center justify-between pt-4">
-              <div className="text-sm text-muted-foreground">
-                Publishing as:{" "}
-                <span className="font-medium">{user?.username}</span>
-              </div>
               <div className="flex space-x-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setSelectedPage("posts")}
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !title.trim() || !content.trim()}
+                  disabled={isLoading || !title.trim() || !content.trim()}
                 >
-                  {isSubmitting ? "Publishing..." : "Publish Post"}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    "Publish Post"
+                  )}
                 </Button>
               </div>
             </div>
