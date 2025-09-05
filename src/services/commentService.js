@@ -133,8 +133,6 @@ const commentService = {
   // Update a comment
   async updateComment(commentId, commentText, token) {
     try {
-      console.log("Service: Updating comment:", commentId);
-
       const response = await fetch(`${API_BASE_URL}/comments/${commentId}`, {
         method: "PUT",
         headers: {

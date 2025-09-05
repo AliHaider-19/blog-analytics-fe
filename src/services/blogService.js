@@ -1,3 +1,5 @@
+import axios from "axios";
+
 // 1. CREATE: services/blogService.js
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -145,25 +147,22 @@ const blogService = {
   // Delete a blog post
   async deleteBlog(id, token) {
     try {
-      const response = await fetch(`${API_BASE_URL}/blogs/${id}`, {
-        method: "DELETE",
+      const response = await axios.delete(`${API_BASE_URL}/blogs/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
         return {
           success: false,
-          message: data.message || "Failed to delete blog post",
+          message: response.data.message || "Failed to delete blog post",
         };
       }
 
       return {
         success: true,
-        message: data.message,
+        message: response.data.message,
       };
     } catch (error) {
       return {

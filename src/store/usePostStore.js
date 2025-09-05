@@ -99,6 +99,12 @@ const usePostStore = create((set, get) => ({
     }
   },
 
+  // Alias for getPostById
+  fetchPostById: async (id) => {
+    const { getPostById } = get();
+    return await getPostById(id);
+  },
+
   // Update a post
   updatePost: async (id, updateData, token) => {
     set({ isLoading: true, error: null });
