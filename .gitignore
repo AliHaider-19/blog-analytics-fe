@@ -14,7 +14,6 @@ dist
 dist-ssr
 
 *.local
-.env
 .env.*   # 👈 this line ensures .env.development, .env.production etc. are also ignored
 
 .vscode/*
@@ -26,3 +25,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+config.bat
