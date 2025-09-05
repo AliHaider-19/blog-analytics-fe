@@ -15,10 +15,7 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          console.log("Store: Calling authService.login...");
           const result = await authService.login(username, password);
-
-          console.log("Store: authService response:", result);
 
           if (result.success) {
             console.log("Store: Login successful, setting user data...");
@@ -30,12 +27,10 @@ const useAuthStore = create(
             });
             return { success: true, message: result.message };
           } else {
-            console.log("Store: Login failed:", result.message);
             set({ isLoading: false, error: result.message });
             return { success: false, message: result.message };
           }
         } catch (error) {
-          console.log("Store: Caught error:", error);
           const errorMessage =
             error.response?.data?.message || "Login failed. Please try again.";
           set({ isLoading: false, error: errorMessage });
@@ -43,12 +38,12 @@ const useAuthStore = create(
         }
       },
 
-      register: async (username, password) => {
+      register: async (username, email, password) => {
         set({ isLoading: true, error: null });
 
         try {
           console.log("Store: Calling authService.register...");
-          const result = await authService.register(username, password);
+          const result = await authService.register(username, email, password);
 
           // Debug: Log what comes back from authService
           console.log("Store: authService response:", result);
@@ -115,6 +110,68 @@ const useAuthStore = create(
         } catch (error) {
           set({ user: null, token: null });
           return false;
+        }
+      },
+
+      // Forgot password
+      forgotPassword: async (email) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const result = await authService.forgotPassword(email);
+          set({ isLoading: false });
+          return result;
+        } catch (error) {
+          const errorMessage = error.message || "Failed to send reset email";
+          set({ isLoading: false, error: errorMessage });
+          return { success: false, message: errorMessage };
+        }
+      },
+
+      // Reset password
+      resetPassword: async (resetToken, password) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const result = await authService.resetPassword(resetToken, password);
+
+          if (result.success) {
+            // Auto-login after successful password reset
+            set({
+              user: result.data.user,
+              token: result.data.token,
+              isLoading: false,
+              error: null,
+            });
+          } else {
+            set({ isLoading: false });
+          }
+
+          return result;
+        } catch (error) {
+          const errorMessage = error.message || "Failed to reset password";
+          set({ isLoading: false, error: errorMessage });
+          return { success: false, message: errorMessage };
+        }
+      },
+
+      // Change password
+      changePassword: async (currentPassword, newPassword) => {
+        const { token } = get();
+        set({ isLoading: true, error: null });
+
+        try {
+          const result = await authService.changePassword(
+            currentPassword,
+            newPassword,
+            token
+          );
+          set({ isLoading: false });
+          return result;
+        } catch (error) {
+          const errorMessage = error.message || "Failed to change password";
+          set({ isLoading: false, error: errorMessage });
+          return { success: false, message: errorMessage };
         }
       },
     }),

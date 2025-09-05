@@ -1,9 +1,9 @@
 /* eslint-disable no-unused-vars */
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePostStore } from "../store/usePostStore";
-import { useNavigationStore } from "../store/useNavigationStore";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -20,14 +20,13 @@ import { PlusCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function AddPost() {
-  const [author, setAuthor] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
 
-  const { isAuthenticated, token } = useAuthStore();
+  const { isAuthenticated, token, user } = useAuthStore();
   const { addPost, isLoading } = usePostStore();
-  const { setSelectedPage } = useNavigationStore();
+  const navigate = useNavigate();
 
   // Redirect if not authenticated
   if (!isAuthenticated()) {
@@ -41,7 +40,7 @@ export default function AddPost() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button onClick={() => setSelectedPage("login")}>
+            <Button onClick={() => navigate("/login")}>
               Go to Login
             </Button>
           </CardContent>
@@ -71,10 +70,13 @@ export default function AddPost() {
     }
 
     try {
+      // Use the logged-in user's username as the author
+      const authorName = user?.username || user?.name || "Unknown User";
+      
       const result = await addPost(
         title.trim(),
         content.trim(),
-        author.trim(),
+        authorName,
         token
       );
 
@@ -93,7 +95,7 @@ export default function AddPost() {
         setTitle("");
         setContent("");
 
-        setSelectedPage("posts");
+        navigate("/posts");
       } else {
         // Handle API errors
         console.error("Component: Failed to create post:", result.message);
@@ -133,7 +135,7 @@ export default function AddPost() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => setSelectedPage("posts")}
+          onClick={() => navigate("/posts")}
           className="mb-4"
           disabled={isLoading}
         >
@@ -149,17 +151,7 @@ export default function AddPost() {
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="author">Post Author</Label>
-              <Input
-                id="author"
-                type="text"
-                placeholder="Enter your name"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
+            {/* Author field removed - automatically using logged-in user's username */}
             <div className="space-y-2">
               <Label htmlFor="title">Post Title</Label>
               <Input
@@ -200,7 +192,7 @@ export default function AddPost() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setSelectedPage("posts")}
+                  onClick={() => navigate("/posts")}
                   disabled={isLoading}
                 >
                   Cancel

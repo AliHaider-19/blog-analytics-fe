@@ -1,7 +1,8 @@
+/* eslint-disable no-unused-vars */
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { useNavigationStore } from "../store/useNavigationStore";
+import { usePostStore } from "../store/usePostStore";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -24,49 +25,64 @@ export default function EditPost() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
   const [error, setError] = useState(null);
+  const [post, setPost] = useState(null);
 
+  const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { setSelectedPage, selectedPost, setSelectedPost } =
-    useNavigationStore();
+  const { fetchPostById, updatePost } = usePostStore();
 
   // Load post data when component mounts
   useEffect(() => {
-    console.log("EditPost mounted. SelectedPost:", selectedPost);
-    if (selectedPost) {
-      setFormData({
-        title: selectedPost.title || "",
-        content: selectedPost.content || "",
-      });
-    } else {
-      setSelectedPage("posts");
-    }
-  }, [selectedPost, setSelectedPage]);
+    const loadPost = async () => {
+      if (id) {
+        try {
+          setIsLoadingPost(true);
+          const result = await fetchPostById(id);
+          if (result.success) {
+            setPost(result.data);
+            setFormData({
+              title: result.data.title || "",
+              content: result.data.content || "",
+            });
+          } else {
+            toast.error("Failed to load post for editing");
+            navigate("/posts");
+          }
+        } catch (error) {
+          toast.error("Error loading post");
+          navigate("/posts");
+        } finally {
+          setIsLoadingPost(false);
+        }
+      }
+    };
+
+    loadPost();
+  }, [id, fetchPostById, navigate]);
 
   // Check authorization
   const isAuthorized = (() => {
-    if (!user || !selectedPost) {
-      console.log("No user or selectedPost");
+    if (!user || !post) {
+      console.log("No user or post for authorization check");
       return false;
     }
 
-    const userId = user.id || user._id;
-    const username = user.username;
+    const currentUserId = user.id || user._id;
+    const postUserId = post.userId;
+    const currentUsername = user.username;
+    const postAuthor = post.author;
 
-    // Handle different author field formats
-    const authorId = selectedPost.author?._id || selectedPost.author?.id;
-    const authorUsername = selectedPost.author?.username || selectedPost.author;
-
-    // Check both ID and username matching
-    const idMatch = authorId && userId && userId === authorId;
+    // Check if current user is the author by comparing userId or username
+    const userIdMatch =
+      currentUserId && postUserId && currentUserId === postUserId;
     const usernameMatch =
-      authorUsername && username && username === authorUsername;
+      currentUsername && postAuthor && currentUsername === postAuthor;
 
-    console.log("ID Match:", idMatch, "Username Match:", usernameMatch);
-
-    return idMatch || usernameMatch;
+    return userIdMatch || usernameMatch;
   })();
-  const { token } = useAuthStore((state) => state);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -107,38 +123,32 @@ export default function EditPost() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedPost) {
-      console.log("No selected post");
-      toast.error("No post selected for editing");
+    if (!post) {
+      toast.error("Post not found");
       return;
     }
 
     if (!isAuthorized) {
-      console.log("Not authorized");
       toast.error("You are not authorized to edit this post");
-      setSelectedPage("posts");
+      navigate("/posts");
       return;
     }
 
     if (!validateForm()) {
-      console.log("Form validation failed");
       toast.error("Please fix the errors in the form");
       return;
     }
 
-    console.log("Token exists:", !!token);
-
+    // const token = getToken();
+    const { token } = useAuthStore.getState((state) => state);
     if (!token) {
-      console.log("No token");
       toast.error("Please log in to edit posts");
-      setSelectedPage("login");
+      navigate("/login");
       return;
     }
 
     setIsLoading(true);
     setError(null);
-
-    console.log("About to call updatePost with Axios...");
 
     try {
       const updateData = {
@@ -146,92 +156,39 @@ export default function EditPost() {
         content: formData.content.trim(),
       };
 
-      console.log("Making PUT request with:", updateData);
+      const result = await updatePost(id, updateData, token);
 
-      const response = await axios.put(
-        `http://localhost:5000/api/blogs/${selectedPost._id}`,
-        updateData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      console.log("Axios response:", response.data);
-
-      if (response.data.success || response.status === 200) {
+      if (result.success) {
         toast.success("Post updated successfully!");
-        setSelectedPost(null);
-        setSelectedPage("posts");
+        navigate(`/posts/${id}`);
       } else {
-        throw new Error(response.data.message || "Failed to update post");
+        toast.error(result.message || "Failed to update post");
       }
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
-
-      let errorMessage = "Failed to update post. Please try again.";
-
-      if (error.response) {
-        // Server responded with error status
-        const { status, data } = error.response;
-        console.log("Error response:", { status, data });
-
-        if (status === 401) {
-          errorMessage = "You are not authorized to edit this post";
-          setSelectedPage("login");
-        } else if (status === 403) {
-          errorMessage = "Access denied. You can only edit your own posts";
-          setSelectedPage("posts");
-        } else if (status === 404) {
-          errorMessage = "Post not found";
-          setSelectedPage("posts");
-        } else if (data?.message) {
-          errorMessage = data.message;
-        } else if (data?.error) {
-          errorMessage = data.error;
-        }
-      } else if (error.request) {
-        // Network error
-        errorMessage =
-          "Network error. Please check your connection and try again.";
-      }
-
-      setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error("Failed to update post. Please try again.");
     } finally {
       setIsLoading(false);
     }
-
-    console.log("=== SUBMIT ENDED ===");
   };
 
   const handleCancel = () => {
-    setSelectedPost(null);
-    setSelectedPage("posts");
+    navigate(`/posts/${id}`);
   };
 
-  if (!selectedPost) {
+  // Loading state
+  if (isLoadingPost) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>No Post Selected</CardTitle>
-            <CardDescription>Please select a post to edit.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setSelectedPage("posts")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Posts
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading post...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthorized) {
+  // Not found or unauthorized
+  if (!post || !isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <Card className="w-full max-w-md">
@@ -242,7 +199,7 @@ export default function EditPost() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setSelectedPage("posts")}>
+            <Button onClick={() => navigate("/posts")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Posts
             </Button>

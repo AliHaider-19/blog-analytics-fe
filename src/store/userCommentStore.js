@@ -25,15 +25,12 @@ const useCommentStore = create(
         set({ isSubmitting: true, error: null });
 
         try {
-          console.log("Store: Calling commentService.addComment");
           const result = await commentService.addComment(
             blogId,
             commenter,
             commentText,
             token
           );
-
-          console.log("Store: Service returned:", result);
 
           if (result.success) {
             // Update the comments for this blog
