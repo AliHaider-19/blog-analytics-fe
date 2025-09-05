@@ -3,8 +3,11 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AddPost from "./pages/AddPost";
+import EditPost from "./pages/EditPost";
+import ViewPost from "./pages/ViewPost";
 import PostsList from "./pages/PostsList";
 import Analytics from "./pages/Analytics";
+// import Profile from "./pages/Profile";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -19,10 +22,16 @@ function App() {
         return <Register />;
       case "add-post":
         return <AddPost />;
+      case "edit-post":
+        return <EditPost />;
+      case "view-post":
+        return <ViewPost />;
       case "posts":
         return <PostsList />;
       case "analytics":
         return <Analytics />;
+      case "profile":
+        return <Profile />;
       default:
         return <PostsList />;
     }
@@ -36,7 +45,7 @@ function App() {
       {/* Toast Container - Required for react-toastify to work */}
       <ToastContainer
         position="top-right"
-        autoClose={2000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -45,6 +54,7 @@ function App() {
         draggable
         pauseOnHover
         theme="light"
+        className="z-50"
       />
     </div>
   );

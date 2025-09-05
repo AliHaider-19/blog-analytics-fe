@@ -165,16 +165,6 @@ export default function AddPost() {
               <Input
                 id="title"
                 type="text"
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={isLoading}
-                className="text-lg"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="title">Post Title</Label>
-              <Input
-                id="title"
-                type="text"
                 placeholder="Enter an engaging title for your post"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
